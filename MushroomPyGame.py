@@ -8,7 +8,7 @@ pygame.init()
 # Размеры экрана
 WIDTH = 600
 HEIGHT = 800
-background_pic = "img_1.png"
+background_pic = "ForestBackground.png"
 # размеры фоновой картинки
 image = Image.open(background_pic)
 image_width, image_height = image.size
@@ -74,8 +74,8 @@ image = pygame.transform.scale(image, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
 dead_hero = pygame.image.load("DeadMushroom.png")
 dead_hero = pygame.transform.scale(dead_hero, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
 #ФОНОВАЯ МУЗЫКА
-pygame.mixer.init()
-pygame.mixer.music.load("ForestMusic2.mp3")
+#pygame.mixer.init()
+#pygame.mixer.music.load("ForestMusic2.mp3")
 #pygame.mixer.music.play(-1)
 
 
