@@ -1,6 +1,8 @@
+from tkinter.constants import CURRENT
+
 import pygame
 from PIL import Image
-
+from pygame.examples.midi import BACKGROUNDCOLOR
 
 # Инициализация PyGame
 pygame.init()
@@ -8,15 +10,48 @@ pygame.init()
 # Размеры экрана
 WIDTH = 600
 HEIGHT = 800
-background_pic = "ForestBackground.png"
-# размеры фоновой картинки
-image = Image.open(background_pic)
-image_width, image_height = image.size
-print(image_width)
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-background_image = pygame.image.load(background_pic).convert()
-screen.blit(background_image, (0, 0))
+
+# СПИСКИ С УНИКАЛЬНЫМИ ЭЛЕМЕНТАМИ КАЖДОГО УРОВНЯ
+
+BACKGROUNDS = ["ForestBackground.png", "PurpleForestBackground.png"]
+CURRENT_LEVEL = 0 # текущий уровень
+
+
+
+#ЗАГРУЖАЕМ ПЛАТФОРМЫ
+
+def load_from_file(filename):
+    platforms = []
+    with open(filename, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line:
+                x, y = map(int, line.split(','))
+                platforms.append([x, HEIGHT - y])
+    return platforms
+
+def moving_load_from_file(filename):
+    platforms = []
+    with open(filename, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line:
+                x, start_y, end_y = map(int, line.split(','))
+                platforms.append([x, HEIGHT - start_y, HEIGHT - end_y])
+    return platforms
+
+PLATFORMS = []
+KILL_PARTS = []
+M_KILL_PLATFORMS = []
+for level in range(2): # добавляем платформы Для каждого уровня
+    platforms_data_file = f'platforms_level_{level}.txt'
+    kill_parts_data_file = f'kill_parts_level_{level}.txt'
+    m_kill_parts_data_file = f'moving_kill_parts_level_{level}.txt'
+    M_KILL_PLATFORMS.append((moving_load_from_file(m_kill_parts_data_file)))
+    PLATFORMS.append(load_from_file(platforms_data_file))
+    KILL_PARTS.append(load_from_file(kill_parts_data_file))
+
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -48,7 +83,7 @@ CREATURE_HIGHT = 100
 
 FPS = 30
 
-background_pic = "ForestBackground.png"
+background_pic = BACKGROUNDS[0] # текущая фоновая картинка
 # размеры фоновой картинки
 image = Image.open(background_pic)
 image_width, image_height = image.size
@@ -60,12 +95,20 @@ KP_HEIGHT = 20
 KP_WIDTH = 35
 
 # Размеры экрана
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Background Image")
 
-background_path = background_pic  # Путь к файлу фона
-background = pygame.image.load(background_pic).convert()
-background_image = pygame.transform.scale(background, (WIDTH, image_height))
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Mushroom game")
+
+# ЗАГРУЖАЕМ ПЕРСОНАЖА
+image = pygame.image.load("Mushroom1.png")
+image = pygame.transform.scale(image, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
+
+def next_level(background_pic):
+    background_path = background_pic  # Путь к файлу фона
+    background = pygame.image.load(background_pic).convert()
+    background_image = pygame.transform.scale(background, (WIDTH, image_height))
+    return background_image
+
 
 # ЗАГРУЖАЕМ ПЕРСОНАЖА
 image = pygame.image.load("Mushroom1.png")
@@ -73,6 +116,8 @@ image = pygame.transform.scale(image, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
 
 dead_hero = pygame.image.load("DeadMushroom.png")
 dead_hero = pygame.transform.scale(dead_hero, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
+creature_1 = pygame.image.load("Creature_1.png")
+creature_1 = pygame.transform.scale(creature_1, (CREATURE_HIGHT + 50, CREATURE_HIGHT + 50))
 #ФОНОВАЯ МУЗЫКА
 #pygame.mixer.init()
 #pygame.mixer.music.load("ForestMusic2.mp3")
@@ -125,11 +170,12 @@ class Creature:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.rect = pygame.Rect(self.x , self.y, CREATURE_WIDTH, CREATURE_HIGHT)
+        self.rect = pygame.Rect(self.x , self.y, CREATURE_WIDTH - 15, CREATURE_HIGHT + 20)
 
     def draw(self, screen):
         if not game.hero.creature_contact: # нет контакта с существом
             pygame.draw.rect(screen, 'dark green', self.rect)
+            screen.blit(creature_1, self.rect)
         else:
             pygame.draw.rect(screen, 'light green', self.rect)
 
@@ -198,7 +244,6 @@ class Hero:
 
     def draw(self, screen): # отрисовываем персонажа
         hero_rect = pygame.Rect(self.hero_x, self.hero_y, 50, 50)
-        pygame.draw.rect(screen, 'red', hero_rect)
         if game.restart_game: # если игрок проиграл
             screen.blit(dead_hero, (self.hero_x - HERO_CONSTANT / 1.7, self.hero_y - HERO_CONSTANT))
         else:
@@ -226,6 +271,7 @@ class Hero:
             return
 
         if self.hero.colliderect(game.creature): # СОПРИКОСНОВЕНИЕ С СУЩЕСТВОМ
+            game.contact_with_creature()
             self.creature_contact = True
         else:
             self.creature_contact = False
@@ -250,14 +296,7 @@ class Hero:
 
         self.move()
         if not self.can_jump or not self.on_ground and self.velocity_y > 0:
-            if game.background_pos <= 0:
-                game.move_parts()
-
-        # Применяем гравитацию, если игрок не на земле (ПАДЕНИЕ)
-        if not self.on_ground:
-            self.velocity_y += GRAVITY
-            self.hero_y += self.velocity_y
-            self.hero.y = self.hero_y
+            game.move_parts()
 
         # Проверка касания земли
         if self.hero_y >= HERO_START_Y - game.GROUND_HEIGHT:
@@ -273,6 +312,13 @@ class Hero:
                 self.can_jump = True
                 self.hero.y = self.hero_y
 
+
+        # Применяем гравитацию, если игрок не на земле (ПАДЕНИЕ)
+        if not self.on_ground:
+            self.velocity_y += GRAVITY
+            self.hero_y += self.velocity_y
+            self.hero.y = self.hero_y
+
         for fragment in game.fragments:
             if self.hero.colliderect(fragment): # ЕСЛИ ИГРОК ВЗЯЛ ФРАГМЕНТ
                game.fragments_taken += 1
@@ -286,8 +332,9 @@ class Hero:
             # ПРОВЕРКА НА ПЕРЕСЕЧЕНИЕ ПЛАТФОРМ
             if self.hero.colliderect(platform.rect):  # w
 
-                if self.hero.bottom >= platform.rect.top + 1 and self.velocity_y < 0 and self.velocity_y == -1:  # если игрок не допрыгивает до платформы
+                if self.hero.bottom >= platform.rect.top + 20 and self.velocity_y < 0 and self.velocity_y == -1:  # если игрок не допрыгивает до платформы
                     self.velocity_y = 10
+                    self.hero_y = platform.rect.bottom
                     break
 
                 elif self.velocity_y > 0 and self.hero.bottom >= platform.rect.top and self.hero.bottom <= platform.rect.bottom:  # касаемся сверху (падаем на платформу)
@@ -307,6 +354,8 @@ class Hero:
 class Game:
     def __init__(self):
         self.restart_game = False
+        self.level_change = False
+        self.background_image = next_level(BACKGROUNDS[CURRENT_LEVEL])
 
         self.platforms = []
         self.fragments = []
@@ -337,54 +386,18 @@ class Game:
 
     def create_platforms(self):
         # Создаем платформы
-        self.platforms.append(Platform(100, HEIGHT - 100))
-        self.platforms.append(Platform(200, HEIGHT - 200))
-        self.platforms.append(Platform(400, HEIGHT - 200))
-        self.platforms.append(Platform(500, HEIGHT - 300))
-        self.platforms.append(Platform(300, HEIGHT - 450))
 
-        self.platforms.append(Platform(100, HEIGHT - 600))
-        self.platforms.append(Platform(350, HEIGHT - 700))
-        self.platforms.append(Platform(500, HEIGHT - 800))
-        self.platforms.append(Platform(100, HEIGHT - 800))
-        self.platforms.append(Platform(100, HEIGHT - 950))
-
-        self.platforms.append(Platform(300, HEIGHT - 1020))
-        self.platforms.append(Platform(500, HEIGHT - 1120))
-        self.platforms.append(Platform(300, HEIGHT - 1200))
-        self.platforms.append(Platform(500, HEIGHT - 1310))
-        self.platforms.append(Platform(500, HEIGHT - 1450)) #W
-
-        self.platforms.append(Platform(350, HEIGHT - 1575))
-        self.platforms.append(Platform(200, HEIGHT - 1690)) #W
-        self.platforms.append(Platform(175, HEIGHT - 1690))
-        self.platforms.append(Platform(200, HEIGHT - 1475))
-        self.platforms.append(Platform(0, HEIGHT - 1520))
-
-        self.platforms.append(Platform(300, HEIGHT - 1795))
-        self.platforms.append(Platform(500, HEIGHT - 1890)) # 21
-
-        self.platforms.append(Platform(70, HEIGHT - 1890))
-        self.platforms.append(Platform(200, HEIGHT - 2000))
-        self.platforms.append(Platform(400, HEIGHT - 2050))
-        self.platforms.append(Platform(500, HEIGHT - 2130))
-        self.platforms.append(Platform(500, HEIGHT - 2250))
-
+        for x, y in PLATFORMS[CURRENT_LEVEL]:
+            self.platforms.append(Platform(x, y))
 
     def create_creature(self):
         self.creature = Creature(500, HEIGHT - 1870)
         self.creature.rect.bottomleft = 500, HEIGHT - 1865
 
     def create_kill_parts(self):
-        self.kill_parts.append(KillPart(100, HEIGHT - 120))
-        self.kill_parts.append(KillPart(415, HEIGHT - 720))
+        for x, y in KILL_PARTS[CURRENT_LEVEL]:
+            self.kill_parts.append(KillPart(x, y))
 
-        self.kill_parts.append(KillPart(365, HEIGHT - 1215))
-
-        self.kill_parts.append(KillPart(300, HEIGHT - 1035))
-        self.kill_parts.append(KillPart(0, HEIGHT - 1540))
-        self.kill_parts.append(KillPart(530, HEIGHT - 2150))
-        self.kill_parts.append(KillPart(565, HEIGHT - 2150))
 
 
     def contact_with_creature(self): # разговариваем с существом
@@ -397,14 +410,23 @@ class Game:
         cords = self.creature.rect.topleft
         x, y = cords
         y -= 85
-        if self.fragments_taken == 3:
-            for line in all_collected:
+        if self.fragments_taken >= 0:
 
 
-                text = font.render(line, True, 'white')
-                text_rect = text.get_rect(topleft=(x, y))
-                screen.blit(text, text_rect)
-                y += text.get_height()  # смещаем позицию y на высоту текста
+            font = pygame.font.SysFont("Splash", 70)
+            text = font.render("УРОВЕНЬ ПРОЙДЕН", True, 'orange')  # Текст, сглаживание, цвет
+            text_rect = text.get_rect(
+                center=(WIDTH // 2, HEIGHT // 2))  # форматирование текста посередине
+            screen.blit(text, text_rect)  # выводим текст
+
+            font = pygame.font.Font(None, 35)
+            text = font.render('Чтобы перейти на след. уровень нажмите "f"', True, 'black')  # Текст, сглаживание, цвет
+            text_rect = text.get_rect(
+                center=(WIDTH // 2, HEIGHT // 2 + 40))  # форматирование текста посередине
+            screen.blit(text, text_rect)  # выводим текст
+
+            if self.f_pressed:
+                self.change_level()
 
         else:
             for line in not_all_collected:
@@ -415,14 +437,14 @@ class Game:
 
 
     def create_moving_kill_parts(self):
-        self.moving_kill_parts.append((MovingPart(330, HEIGHT - 150, 40, 100, HEIGHT - 350)))
-        self.moving_kill_parts.append((MovingPart(300, HEIGHT - 2100, 40, 100, HEIGHT - 2300)))# x, start pos, w, h, end_pos,
+        for x, y_start, y_end in M_KILL_PLATFORMS[CURRENT_LEVEL]:
+            self.moving_kill_parts.append((MovingPart(x, y_start, 40, 100, y_end)))
 
 
     def create_fragment(self):
         self.fragments.append(Fragment([555, HEIGHT - 840]))
         self.fragments.append(Fragment([40, HEIGHT - 1560]))
-        self.fragments.append(Fragment([560, HEIGHT - 2290]))
+        self.fragments.append(Fragment([540, HEIGHT - 2160]))
 
 
     def handle_input(self):
@@ -468,33 +490,33 @@ class Game:
 
         # ДВИГАЕМ
 
-        for platform in self.platforms:
-            platform.y += move
-            platform.rect.y += move
+        if game.background_pos <= 0:
 
-        for part in self.moving_kill_parts:
-            part.rect.y += move
-            part.y += move
-            part.end_y += move
+            for platform in self.platforms:
+                platform.rect.y += move
+            self.creature.rect.y += move
 
-        for fragment in self.fragments:
-            fragment.coords[-1] += move
-            fragment.rect.y += move
+            for part in self.moving_kill_parts:
+                part.rect.y += move
+                part.y += move
+                part.end_y += move
 
-        for part in self.kill_parts:
-            part.y += move
-            part.rect.y += move
+            for fragment in self.fragments:
+                fragment.rect.y += move
 
-        self.background_pos += move
-        self.creature.rect.y += move
-        if self.GROUND_HEIGHT > 0:
-            self.GROUND_HEIGHT -= move
+            for part in self.kill_parts:
+                part.y += move
+                part.rect.y += move
+
+            self.background_pos += move
+            if self.GROUND_HEIGHT > 0:
+                self.GROUND_HEIGHT -= move
 
 
     def render(self): # ОТРИСОВКА ФОНА, ПЛАТФОРМ И ФРАГМЕНТА
 
         screen.fill((255, 255, 255))
-        screen.blit(background_image, (0, self.background_pos))
+        screen.blit(self.background_image, (0, self.background_pos))
 
         for platform in self.platforms:
             platform.draw(screen)
@@ -505,7 +527,6 @@ class Game:
         for move_kill_part in self.moving_kill_parts:
             move_kill_part.draw(screen)
 
-        self.creature.draw(screen)
         if not self.def_animation:
             self.hero.draw(screen)
         else:
@@ -520,6 +541,13 @@ class Game:
             self.contact_with_creature()
 
         self.fragments_count_text_show()
+        if game.hero.creature_contact:
+            self.contact_with_creature()
+
+        if game.fragments_taken == 3: # если все фрагменты взяты рисуем жабу
+            self.creature.draw(screen)
+
+        pygame.display.flip()
 
     def run(self):
         running = True
@@ -540,7 +568,6 @@ class Game:
             text = font.render(f"Все фрагменты собраны!", True, 'dark blue')
         text_rect = text.get_rect(topleft=(10, 10))  # форматирование текста
         screen.blit(text, text_rect)  # выводим текст
-        pygame.display.flip()
 
     def defeat(self): # проигрыш
 
@@ -586,6 +613,13 @@ class Game:
         game.hero.can_jump = False
         game.hero.hero_can_move = False
         pygame.display.flip()
+
+    def change_level(self): # следующий уровень
+        global CURRENT_LEVEL
+        CURRENT_LEVEL += 1
+        self.__init__()
+        print('Меняем фон')
+        self.level_change = True
 
 
 # Создание и запуск игры
