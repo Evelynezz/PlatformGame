@@ -14,8 +14,8 @@ HEIGHT = 800
 
 # СПИСКИ С УНИКАЛЬНЫМИ ЭЛЕМЕНТАМИ КАЖДОГО УРОВНЯ
 
-BACKGROUNDS = ["ForestBackground.png", "PurpleForestBackground.png"]
-CURRENT_LEVEL = 1 # текущий уровень
+BACKGROUNDS = ["ForestBackground.png", "PaperBackground1.png"]
+CURRENT_LEVEL = 0 # текущий уровень
 
 
 
@@ -41,7 +41,7 @@ def kill_load_from_file(filename):
                 platforms.append([[x, HEIGHT - y], p])
     return platforms
 
-def moving_load_from_file(filename):
+def horisontal_moving_load_from_file(filename):
     platforms = []
     with open(filename, 'r') as file:
         for line in file:
@@ -51,20 +51,37 @@ def moving_load_from_file(filename):
                 platforms.append([x, HEIGHT - start_y, HEIGHT - end_y])
     return platforms
 
+def vertical_moving_load_from_file(filename):
+    platforms = []
+    with open(filename, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line:
+                y, start_x, end_x = map(int, line.split(','))
+                platforms.append([y, start_x, end_x])
+    return platforms
+
+
+
 PLATFORMS = []
 KILL_PARTS = []
 M_KILL_PLATFORMS = []
 FRAGMENTS = []
+M_PLARFORMS = []
+CREATURES = []
 for level in range(2): # добавляем платформы Для каждого уровня
     platforms_data_file = f'platforms_level_{level}.txt'
     kill_parts_data_file = f'kill_parts_level_{level}.txt'
     m_kill_parts_data_file = f'moving_kill_parts_level_{level}.txt'
     fragments_data_file = f'fragments_level_{level}.txt'
-    M_KILL_PLATFORMS.append((moving_load_from_file(m_kill_parts_data_file)))
+    platform_moving_file = f'moving_platforms_level_{level}.txt'
+    creature_file = f'creature_level_{level}.txt'
+    M_KILL_PLATFORMS.append((horisontal_moving_load_from_file(m_kill_parts_data_file)))
     PLATFORMS.append(load_from_file(platforms_data_file))
     KILL_PARTS.append(kill_load_from_file(kill_parts_data_file))
     FRAGMENTS.append(kill_load_from_file(fragments_data_file))
-
+    M_PLARFORMS.append(vertical_moving_load_from_file(platform_moving_file))
+    CREATURES.append(load_from_file(creature_file))
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -113,8 +130,6 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Mushroom game")
 
 # ЗАГРУЖАЕМ ПЕРСОНАЖА
-image = pygame.image.load("Mushroom1.png")
-image = pygame.transform.scale(image, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
 
 def next_level(background_pic):
     background_path = background_pic  # Путь к файлу фона
@@ -124,8 +139,13 @@ def next_level(background_pic):
 
 
 # ЗАГРУЖАЕМ ПЕРСОНАЖА
-image = pygame.image.load("Mushroom1.png")
-image = pygame.transform.scale(image, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
+
+image2 = pygame.image.load("inky.png")
+image2 = pygame.transform.scale(image2, (HERO_HEIGHT + 20, HERO_HEIGHT + 30))
+
+image = pygame.image.load("inky2.png")
+image = pygame.transform.scale(image, (HERO_HEIGHT + 20, HERO_HEIGHT + 30))
+
 
 dead_hero = pygame.image.load("DeadMushroom.png")
 dead_hero = pygame.transform.scale(dead_hero, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
@@ -204,20 +224,21 @@ class KillPart:
         pygame.draw.rect(screen, 'red', self.rect)
 
 class MovingPlatform:
-    def __init__(self, x, start_y, end_y):
-        self.x = x
-        self.y = start_y
-        self.end_y = end_y
+    def __init__(self, y, start_x, end_x):
+        self.y = y
+        self.x = start_x
+        self.end_x = end_x
         self.rect = pygame.Rect(self.x, self.y, PLATFORM_WIDTH, PLATFORM_HEIGHT)
         self.move_part_level1_velocity = 3
+        self.move_right = True
     def draw(self, screen):
         pygame.draw.rect(screen, 'brown', self.rect)
 
-    def update_pos_down(self):
-        self.rect.y += self.move_part_level1_velocity
+    def update_pos_right(self):
+        self.rect.x += self.move_part_level1_velocity
 
-    def update_pos_up(self):
-        self.rect.y -= self.move_part_level1_velocity
+    def update_pos_left(self):
+        self.rect.x -= self.move_part_level1_velocity
 
 
 class MovingPart:
@@ -270,6 +291,7 @@ class Hero:
         self.defeat = False # Игрок не проиграл
         self.hero_can_move = True
         self.creature_contact = False
+        self.current_image = image
 
 
     def draw(self, screen): # отрисовываем персонажа
@@ -277,11 +299,15 @@ class Hero:
         if game.restart_game: # если игрок проиграл
             screen.blit(dead_hero, (self.hero_x - HERO_CONSTANT / 1.7, self.hero_y - HERO_CONSTANT))
         else:
-            screen.blit(image, (self.hero_x - HERO_CONSTANT / 1.7, self.hero_y - HERO_CONSTANT))
+            if self.moving_left:
+                self.current_image = image2
+            elif self.moving_right:
+                self.current_image = image
+            screen.blit(self.current_image, (self.hero_x - HERO_CONSTANT / 1.7, self.hero_y - HERO_CONSTANT))
 
     def jump(self):
         if self.can_jump and self.velocity_y <= 0:
-            print('jumpo')
+            print('JUMP')
             self.velocity_y = -HERO_JUMP_STRENGTH
             self.on_ground = False
             self.can_jump = False
@@ -307,17 +333,61 @@ class Hero:
             self.creature_contact = False
             game.f_pressed = False
 
-        for part in game.moving_kill_parts: # ДВИЖЕНИЕ ПЛАТФОРМ
-            if self.hero.colliderect(part): # если игрок пересек платформу
+        for part in game.moving_kill_parts: # ДВИЖЕНИЕ KПЛАТФОРМ
+            if self.hero.colliderect(part): # если игрок пересек kплатформу
                 game.defeat()
                 self.defeat = True
-            if part.rect.y >= part.end_y and part.move_up: # если платформа достигла конечной позиции
+            if part.rect.y >= part.end_y and part.move_up: # если kплатформа достигла конечной позиции
                 part.update_pos_up()
             else:
                 part.move_up = False
                 part.update_pos_down()
                 if part.rect.y >= part.y:
                     part.move_up = True
+
+        for part in game.moving_platforms: # ДВИЖЕНИЕ ПЛАТФОРМ
+            if part.rect.x <= part.end_x and part.move_right: # если платформа достигла конечной позиции
+                part.update_pos_right()
+            else:
+                part.move_right = False
+                part.update_pos_left()
+                if part.rect.x <= part.x:
+                    part.move_right = True
+
+        on_platform = False
+        for part in game.moving_platforms:
+            if self.hero.colliderect(part.rect):  # w
+                print('ПЕРЕСЕКЛИСЬ')
+                print(self.hero.x, part.rect.x)
+                if self.hero.bottom == part.rect.top + 1: # если игрок на платформе
+                    if part.move_right:
+                        self.hero_x += part.move_part_level1_velocity
+                    else:
+                        self.hero_x -= part.move_part_level1_velocity
+                    self.hero.x = self.hero_x
+
+
+                if self.hero.bottom >= part.rect.top + 20 and self.velocity_y < 0 and self.velocity_y == -1:  # если игрок не допрыгивает до платформы
+                    self.velocity_y = 10
+                    self.hero_y = part.rect.bottom
+                    break
+
+                elif self.velocity_y >= 0 and self.hero.bottom >= part.rect.top and self.hero.bottom <= part.rect.bottom:
+                    print('ON PLATFORM')# касаемся сверху (падаем на платформу)
+                    on_platform = True  # устанавливаем флаг, что мы на платформе
+                    self.velocity_y = 0
+                    self.hero.bottom = part.rect.top + 1
+                    self.hero_y = self.hero.bottom - HERO_HEIGHT
+                    self.on_ground = True
+                    self.can_jump = True
+
+                    break  # выходим из цикла, так как игрок приземлился на платформу
+            elif not on_platform and not (self.hero_x + HERO_HEIGHT < part.x or self.hero_x + HERO_HEIGHT > part.x + PLATFORM_WIDTH):  # если игрок не на платформе, то устанавливаем on_ground в False
+                print(self.hero.x + HERO_HEIGHT, part.rect.x)
+                self.on_ground = False
+
+        #if self.on_ground:
+            #on_platform = True
 
         for part in game.kill_parts:  # ДВИЖЕНИЕ ПЛАТФОРМ
             if self.hero.colliderect(part[0]):  # если игрок пересек платформу
@@ -356,7 +426,7 @@ class Hero:
                fragment[0].is_taken = True
 
         # Проверка касания платформы
-        on_platform = False
+
         for platform in platforms:
 
             # ПРОВЕРКА НА ПЕРЕСЕЧЕНИЕ ПЛАТФОРМ
@@ -392,8 +462,10 @@ class Game:
         self.fragments = []
         self.kill_parts = []
         self.moving_kill_parts = []
+        self.moving_platforms = []
 
         self.create_moving_kill_parts()
+        self.create_moving_platforms()
         self.create_kill_parts()
         self.create_platforms()
         self.create_fragment()
@@ -415,6 +487,7 @@ class Game:
 
         self.GROUND_HEIGHT = 35
 
+
     def create_platforms(self):
         # Создаем платформы
 
@@ -422,8 +495,12 @@ class Game:
             self.platforms.append(Platform(x, y))
 
     def create_creature(self):
-        self.creature = Creature(500, HEIGHT - 1870)
-        self.creature.rect.bottomleft = 500, HEIGHT - 1865
+        for coords in CREATURES[CURRENT_LEVEL]:
+            x, y = coords
+            self.creature = Creature(x, y)
+            print('creature')
+            print(x,y)
+        #self.creature.rect.bottomleft = 500, HEIGHT - 1865
 
     def create_kill_parts(self):
         for coords, p in KILL_PARTS[CURRENT_LEVEL]:
@@ -442,7 +519,7 @@ class Game:
         cords = self.creature.rect.topleft
         x, y = cords
         y -= 85
-        if self.fragments_taken == 3: # ЕСЛИ СОБРАЛИ ВСЕ ФРАГМЕНТЫ
+        if self.fragments_taken >= 0: # ЕСЛИ СОБРАЛИ ВСЕ ФРАГМЕНТЫ
 
 
             font = pygame.font.SysFont("Splash", 70)
@@ -471,6 +548,12 @@ class Game:
     def create_moving_kill_parts(self):
         for x, y_start, y_end in M_KILL_PLATFORMS[CURRENT_LEVEL]:
             self.moving_kill_parts.append((MovingPart(x, y_start, 40, 100, y_end)))
+
+    def create_moving_platforms(self):
+        for y, x_start, x_end in M_PLARFORMS[CURRENT_LEVEL]:
+            print('mp')
+            print(y, x_start, x_end)
+            self.moving_platforms.append((MovingPlatform(HEIGHT - y, x_start, x_end)))
 
 
     def create_fragment(self):
@@ -534,6 +617,8 @@ class Game:
                 part.rect.y += move
                 part.y += move
                 part.end_y += move
+            for platform in self.moving_platforms:
+                platform.rect.y += move
 
             for fragment in self.fragments:
                 fragment[0].rect.y = self.platforms[fragment[-1]].rect.top - FRAGMENT_HEIGHT
@@ -566,6 +651,9 @@ class Game:
                 self.already_draw = True
         for move_kill_part in self.moving_kill_parts:
             move_kill_part.draw(screen)
+
+        for platform in self.moving_platforms:
+            platform.draw(screen)
 
         if not self.def_animation:
             self.hero.draw(screen)
