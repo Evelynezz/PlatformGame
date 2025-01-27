@@ -14,8 +14,8 @@ HEIGHT = 800
 
 # СПИСКИ С УНИКАЛЬНЫМИ ЭЛЕМЕНТАМИ КАЖДОГО УРОВНЯ
 
-BACKGROUNDS = ["ForestBackground.png", "PaperBackground1.png"]
-CURRENT_LEVEL = 0 # текущий уровень
+BACKGROUNDS = ["PaperBackground1.png", "PaperBackground1.png", "PaperBackground1.png"]
+CURRENT_LEVEL = 2 # текущий уровень
 
 
 
@@ -69,13 +69,13 @@ M_KILL_PLATFORMS = []
 FRAGMENTS = []
 M_PLARFORMS = []
 CREATURES = []
-for level in range(2): # добавляем платформы Для каждого уровня
-    platforms_data_file = f'platforms_level_{level}.txt'
-    kill_parts_data_file = f'kill_parts_level_{level}.txt'
-    m_kill_parts_data_file = f'moving_kill_parts_level_{level}.txt'
-    fragments_data_file = f'fragments_level_{level}.txt'
-    platform_moving_file = f'moving_platforms_level_{level}.txt'
-    creature_file = f'creature_level_{level}.txt'
+for level in range(3): # добавляем платформы Для каждого уровня
+    platforms_data_file = f'level_parts/platforms_level_{level}.txt'
+    kill_parts_data_file = f'level_parts/kill_parts_level_{level}.txt'
+    m_kill_parts_data_file = f'level_parts/moving_kill_parts_level_{level}.txt'
+    fragments_data_file = f'level_parts/fragments_level_{level}.txt'
+    platform_moving_file = f'level_parts/moving_platforms_level_{level}.txt'
+    creature_file = f'level_parts/creature_level_{level}.txt'
     M_KILL_PLATFORMS.append((horisontal_moving_load_from_file(m_kill_parts_data_file)))
     PLATFORMS.append(load_from_file(platforms_data_file))
     KILL_PARTS.append(kill_load_from_file(kill_parts_data_file))
@@ -149,7 +149,7 @@ image = pygame.transform.scale(image, (HERO_HEIGHT + 20, HERO_HEIGHT + 30))
 
 dead_hero = pygame.image.load("DeadMushroom.png")
 dead_hero = pygame.transform.scale(dead_hero, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
-creature_1 = pygame.image.load("Creature_1.png")
+creature_1 = pygame.image.load("PaperHole.png")
 creature_1 = pygame.transform.scale(creature_1, (CREATURE_HIGHT + 50, CREATURE_HIGHT + 50))
 #ФОНОВАЯ МУЗЫКА
 #pygame.mixer.init()
@@ -206,11 +206,8 @@ class Creature:
         self.rect = pygame.Rect(self.x , self.y, CREATURE_WIDTH - 15, CREATURE_HIGHT + 20)
 
     def draw(self, screen):
-        if not game.hero.creature_contact: # нет контакта с существом
-            pygame.draw.rect(screen, 'dark green', self.rect)
+        if game.fragments_taken == 3:
             screen.blit(creature_1, self.rect)
-        else:
-            pygame.draw.rect(screen, 'light green', self.rect)
 
 
 
@@ -390,7 +387,7 @@ class Hero:
             #on_platform = True
 
         for part in game.kill_parts:  # ДВИЖЕНИЕ ПЛАТФОРМ
-            if self.hero.colliderect(part[0]):  # если игрок пересек платформу
+            if self.hero.colliderect(part[0]):# если игрок пересек платформу
                 game.defeat()
 
 
@@ -510,39 +507,10 @@ class Game:
 
 
     def contact_with_creature(self): # разговариваем с существом
+        if self.fragments_taken == 3:
+            self.change_level()
+            print('TALK')
 
-        print('talk')
-
-        font = pygame.font.SysFont("Splash", 25)
-        all_collected =  ["Все", "фрагменты", "собраны!", "Спасибо!"]
-        not_all_collected = ["Приходи,", "когда", "соберёшь", "все", "фрагменты."]
-        cords = self.creature.rect.topleft
-        x, y = cords
-        y -= 85
-        if self.fragments_taken >= 0: # ЕСЛИ СОБРАЛИ ВСЕ ФРАГМЕНТЫ
-
-
-            font = pygame.font.SysFont("Splash", 70)
-            text = font.render("УРОВЕНЬ ПРОЙДЕН", True, 'orange')  # Текст, сглаживание, цвет
-            text_rect = text.get_rect(
-                center=(WIDTH // 2, HEIGHT // 2))  # форматирование текста посередине
-            screen.blit(text, text_rect)  # выводим текст
-
-            font = pygame.font.Font(None, 35)
-            text = font.render('Чтобы перейти на след. уровень нажмите "f"', True, 'black')  # Текст, сглаживание, цвет
-            text_rect = text.get_rect(
-                center=(WIDTH // 2, HEIGHT // 2 + 40))  # форматирование текста посередине
-            screen.blit(text, text_rect)  # выводим текст
-
-            if self.f_pressed:
-                self.change_level()
-
-        #else:
-            for line in not_all_collected:
-                text = font.render(line, True, 'white')
-                text_rect = text.get_rect(topleft=(x, y))
-                screen.blit(text, text_rect)
-                y += text.get_height()  # смещаем позицию y на высоту текста
 
 
     def create_moving_kill_parts(self):
@@ -581,8 +549,6 @@ class Game:
                     self.hero.moving_right = True
                 if event.key == pygame.K_a:
                     self.hero.moving_left = True
-                if event.key == pygame.K_f and self.hero.creature_contact:
-                    self.f_pressed = True
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_d:
                     self.hero.moving_right = False
@@ -665,14 +631,11 @@ class Game:
             print('text!')
             self.defeat_text()
 
-        if self.hero.creature_contact and self.f_pressed:
-            self.contact_with_creature()
-
         self.fragments_count_text_show()
         if game.hero.creature_contact:
             self.contact_with_creature()
 
-        if game.fragments_taken == 3: # если все фрагменты взяты рисуем жабу
+        if game.fragments_taken >= 0:
             self.creature.draw(screen)
 
         pygame.display.flip()
