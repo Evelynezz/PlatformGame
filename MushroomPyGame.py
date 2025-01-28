@@ -14,8 +14,9 @@ HEIGHT = 800
 
 # СПИСКИ С УНИКАЛЬНЫМИ ЭЛЕМЕНТАМИ КАЖДОГО УРОВНЯ
 
-BACKGROUNDS = ["PaperBackground1.png", "PaperBackground1.png", "PaperBackground1.png"]
-CURRENT_LEVEL = 2 # текущий уровень
+BACKGROUNDS = ["PaperBackground1.png", "PaperBackground1.png", "background1.png", "background2.png"]
+CURRENT_LEVEL = 3 # текущий уровень
+
 
 
 
@@ -69,19 +70,22 @@ M_KILL_PLATFORMS = []
 FRAGMENTS = []
 M_PLARFORMS = []
 CREATURES = []
-for level in range(3): # добавляем платформы Для каждого уровня
+ENEMIES = []
+for level in range(4): # добавляем платформы Для каждого уровня
     platforms_data_file = f'level_parts/platforms_level_{level}.txt'
     kill_parts_data_file = f'level_parts/kill_parts_level_{level}.txt'
     m_kill_parts_data_file = f'level_parts/moving_kill_parts_level_{level}.txt'
     fragments_data_file = f'level_parts/fragments_level_{level}.txt'
     platform_moving_file = f'level_parts/moving_platforms_level_{level}.txt'
     creature_file = f'level_parts/creature_level_{level}.txt'
+    enemies_file = f'level_parts/enemies_level_{level}.txt'
     M_KILL_PLATFORMS.append((horisontal_moving_load_from_file(m_kill_parts_data_file)))
     PLATFORMS.append(load_from_file(platforms_data_file))
     KILL_PARTS.append(kill_load_from_file(kill_parts_data_file))
     FRAGMENTS.append(kill_load_from_file(fragments_data_file))
     M_PLARFORMS.append(vertical_moving_load_from_file(platform_moving_file))
     CREATURES.append(load_from_file(creature_file))
+    ENEMIES.append(vertical_moving_load_from_file(enemies_file))
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -95,10 +99,11 @@ HERO_START_X = 0
 HERO_JUMP_STRENGTH = 16.4
 HERO_MOVE_SPEED = 5
 GRAVITY = 1
-GROUND_HEIGHT = 35
+GROUND_HEIGHT = 50
 HERO_START_Y = HEIGHT - HERO_HEIGHT
 
 # Настройки платформы
+ENEMY_HEIGHT = 55
 PLATFORM_WIDTH = 100
 PLATFORM_HEIGHT = 20
 MOVE_BACKGROUND_CONSTANT = 1
@@ -258,6 +263,26 @@ class MovingPart:
     def update_pos_up(self):
         self.rect.y -= self.move_part_level1_velocity
 
+class MovingEnemy:
+    def __init__(self, y, start_x, width, height, end_x):
+        self.y = y
+        self.x = start_x
+        self.width = width
+        self.height = height
+        self.end_x = end_x
+        self.rect = pygame.Rect(self.x, self.y, width, height)
+        self.move_part_level1_velocity = 2
+        self.move_right = True
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, 'orange', self.rect)
+
+    def update_pos_right(self):
+        self.rect.x += self.move_part_level1_velocity
+
+    def update_pos_left(self):
+        self.rect.x -= self.move_part_level1_velocity
+
 class MovingKillPart:
     pass
 
@@ -351,10 +376,26 @@ class Hero:
                 if part.rect.x <= part.x:
                     part.move_right = True
 
+        for enemy in game.enemies:  # ДВИЖЕНИЕ ВРАГОВ
+            if enemy.rect.x <= enemy.end_x and enemy.move_right:  # если враг достиг конечной позиции
+                enemy.update_pos_right()
+            else:
+                enemy.move_right = False
+                enemy.update_pos_left()
+                if enemy.rect.x <= enemy.x:
+                    enemy.move_right = True
+
+            if self.hero.colliderect(enemy.rect):
+                if self.hero.top > enemy.rect.y or self.hero.bottom >= enemy.rect.bottom:# если игрок касается НЕ сверху, проигрыш
+                    game.defeat()
+                else:
+                    game.enemies.pop(game.enemies.index(enemy))
+                    self.velocity_y = -15
+
+
         on_platform = False
         for part in game.moving_platforms:
             if self.hero.colliderect(part.rect):  # w
-                print('ПЕРЕСЕКЛИСЬ')
                 print(self.hero.x, part.rect.x)
                 if self.hero.bottom == part.rect.top + 1: # если игрок на платформе
                     if part.move_right:
@@ -460,6 +501,7 @@ class Game:
         self.kill_parts = []
         self.moving_kill_parts = []
         self.moving_platforms = []
+        self.enemies = []
 
         self.create_moving_kill_parts()
         self.create_moving_platforms()
@@ -467,6 +509,7 @@ class Game:
         self.create_platforms()
         self.create_fragment()
         self.create_creature()
+        self.create_enemies()
         self.f_pressed = False
 
         self.moving_background = False
@@ -505,13 +548,10 @@ class Game:
             self.kill_parts.append([KillPart(x, y), p])
 
 
-
     def contact_with_creature(self): # разговариваем с существом
         if self.fragments_taken == 3:
             self.change_level()
             print('TALK')
-
-
 
     def create_moving_kill_parts(self):
         for x, y_start, y_end in M_KILL_PLATFORMS[CURRENT_LEVEL]:
@@ -522,6 +562,10 @@ class Game:
             print('mp')
             print(y, x_start, x_end)
             self.moving_platforms.append((MovingPlatform(HEIGHT - y, x_start, x_end)))
+
+    def create_enemies(self):
+        for y, x_start, x_end in ENEMIES[CURRENT_LEVEL]:
+            self.enemies.append(MovingEnemy(HEIGHT - y, x_start, ENEMY_HEIGHT, ENEMY_HEIGHT, x_end))
 
 
     def create_fragment(self):
@@ -585,6 +629,8 @@ class Game:
                 part.end_y += move
             for platform in self.moving_platforms:
                 platform.rect.y += move
+            for part in self.enemies:
+                part.rect.y += move
 
             for fragment in self.fragments:
                 fragment[0].rect.y = self.platforms[fragment[-1]].rect.top - FRAGMENT_HEIGHT
@@ -620,6 +666,9 @@ class Game:
 
         for platform in self.moving_platforms:
             platform.draw(screen)
+
+        for part in self.enemies:
+            part.draw(screen)
 
         if not self.def_animation:
             self.hero.draw(screen)
