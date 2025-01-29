@@ -14,8 +14,9 @@ HEIGHT = 800
 
 # СПИСКИ С УНИКАЛЬНЫМИ ЭЛЕМЕНТАМИ КАЖДОГО УРОВНЯ
 
-BACKGROUNDS = ["PaperBackground1.png", "PaperBackground1.png", "background1.png", "background2.png"]
-CURRENT_LEVEL = 3 # текущий уровень
+BACKGROUNDS = ["background1.png", "background2.png", "background1.png", "background2.png", "background1.png"]
+CURRENT_LEVEL = 0 # текущий уровень
+MAX_LEVEL = 5
 
 
 
@@ -71,7 +72,7 @@ FRAGMENTS = []
 M_PLARFORMS = []
 CREATURES = []
 ENEMIES = []
-for level in range(4): # добавляем платформы Для каждого уровня
+for level in range(MAX_LEVEL): # добавляем платформы Для каждого уровня
     platforms_data_file = f'level_parts/platforms_level_{level}.txt'
     kill_parts_data_file = f'level_parts/kill_parts_level_{level}.txt'
     m_kill_parts_data_file = f'level_parts/moving_kill_parts_level_{level}.txt'
@@ -154,7 +155,7 @@ image = pygame.transform.scale(image, (HERO_HEIGHT + 20, HERO_HEIGHT + 30))
 
 dead_hero = pygame.image.load("DeadMushroom.png")
 dead_hero = pygame.transform.scale(dead_hero, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
-creature_1 = pygame.image.load("PaperHole.png")
+creature_1 = pygame.image.load("portal.png")
 creature_1 = pygame.transform.scale(creature_1, (CREATURE_HIGHT + 50, CREATURE_HIGHT + 50))
 #ФОНОВАЯ МУЗЫКА
 #pygame.mixer.init()
@@ -703,11 +704,14 @@ class Game:
 
     def fragments_count_text_show(self):
         font = pygame.font.SysFont(None, 40)
+        level_text = text = font.render(f"Уровень {CURRENT_LEVEL + 1}", True, 'white')
         if self.fragments_taken != 3:
-            text = font.render(f"Фрагментов собрано: {self.fragments_taken}/3", True, 'dark blue')  # Текст, сглаживание, цвет
+            text = font.render(f"Фрагментов собрано: {self.fragments_taken}/3", True, 'white')  # Текст, сглаживание, цвет
         else:
-            text = font.render(f"Все фрагменты собраны!", True, 'dark blue')
-        text_rect = text.get_rect(topleft=(10, 10))  # форматирование текста
+            text = font.render(f"Все фрагменты собраны!", True, 'white')
+        text_rect = text.get_rect(topleft=(10, 40))  # форматирование текста
+        level_rect = level_text.get_rect(topleft=(10,10))
+        screen.blit(level_text, level_rect)  # выводим текст
         screen.blit(text, text_rect)  # выводим текст
 
     def defeat(self): # проигрыш
