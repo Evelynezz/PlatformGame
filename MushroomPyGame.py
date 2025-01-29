@@ -398,10 +398,11 @@ class Hero:
             if self.hero.colliderect(part.rect):  # w
                 print(self.hero.x, part.rect.x)
                 if self.hero.bottom == part.rect.top + 1: # если игрок на платформе
-                    if part.move_right:
+                    if part.move_right and not (self.moving_right and self.moving_left):
                         self.hero_x += part.move_part_level1_velocity
                     else:
-                        self.hero_x -= part.move_part_level1_velocity
+                        if not (self.moving_right and self.moving_left):
+                            self.hero_x -= part.move_part_level1_velocity
                     self.hero.x = self.hero_x
 
 
