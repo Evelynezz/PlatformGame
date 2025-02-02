@@ -1,8 +1,18 @@
+from sys import platform
 from tkinter.constants import CURRENT
 
 import pygame
 from PIL import Image
+import sys
+
 from pygame.examples.midi import BACKGROUNDCOLOR
+
+
+
+FPS = 50
+clock = pygame.time.Clock()
+
+
 
 # Инициализация PyGame
 pygame.init()
@@ -14,7 +24,7 @@ HEIGHT = 800
 
 # СПИСКИ С УНИКАЛЬНЫМИ ЭЛЕМЕНТАМИ КАЖДОГО УРОВНЯ
 
-BACKGROUNDS = ["background1.png", "background2.png", "background1.png", "background2.png", "background1.png"]
+BACKGROUNDS = ["data/NightBackground5.png", "data/NightBackground5.png", "data/NightBackground5.png", "data/NightBackground5.png", "data/NightBackground5.png"]
 CURRENT_LEVEL = 0 # текущий уровень
 MAX_LEVEL = 5
 
@@ -146,17 +156,30 @@ def next_level(background_pic):
 
 # ЗАГРУЖАЕМ ПЕРСОНАЖА
 
-image2 = pygame.image.load("inky.png")
-image2 = pygame.transform.scale(image2, (HERO_HEIGHT + 20, HERO_HEIGHT + 30))
+image = pygame.image.load("data/cat_right.png")
+image = pygame.transform.scale(image, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
 
-image = pygame.image.load("inky2.png")
-image = pygame.transform.scale(image, (HERO_HEIGHT + 20, HERO_HEIGHT + 30))
+image2 = pygame.image.load("data/cat_left.png")
+image2 = pygame.transform.scale(image2, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
 
 
-dead_hero = pygame.image.load("DeadMushroom.png")
-dead_hero = pygame.transform.scale(dead_hero, (HERO_HEIGHT + 30, HERO_HEIGHT + 30))
+dead_hero = pygame.image.load("data/DeadHero2.png")
+dead_hero = pygame.transform.scale(dead_hero, (HERO_HEIGHT + 15, HERO_HEIGHT + 25))
+
 creature_1 = pygame.image.load("portal.png")
 creature_1 = pygame.transform.scale(creature_1, (CREATURE_HIGHT + 50, CREATURE_HIGHT + 50))
+
+platform_img = pygame.image.load("data/platform2.png")
+platform_img = pygame.transform.scale(platform_img, (PLATFORM_WIDTH, PLATFORM_HEIGHT))
+
+star = pygame.image.load("data/star2.png")
+star = pygame.transform.scale(star, (FRAGMENT_HEIGHT + 20, FRAGMENT_WIDTH + 20))
+
+enemy_img = pygame.image.load("data/enemy.png")
+
+spikes = pygame.image.load("data/spikes2.png")
+moving_spikes = pygame.image.load("data/moving_spikes.png")
+moving_spikes = pygame.transform.scale(moving_spikes, (70, 130))
 #ФОНОВАЯ МУЗЫКА
 #pygame.mixer.init()
 #pygame.mixer.music.load("ForestMusic2.mp3")
@@ -202,7 +225,7 @@ class Platform:
         self.rect = pygame.Rect(self.x , self.y, PLATFORM_WIDTH, PLATFORM_HEIGHT)
 
     def draw(self, screen):
-        pygame.draw.rect(screen, BROWN, self.rect)
+        screen.blit(platform_img, self.rect)
 
 
 class Creature:
@@ -224,7 +247,8 @@ class KillPart:
         self.rect = pygame.Rect(self.x , self.y, KP_WIDTH, KP_HEIGHT)
 
     def draw(self, screen):
-        pygame.draw.rect(screen, 'red', self.rect)
+        screen.blit(spikes, self.rect)
+        #pygame.draw.rect(screen, 'red', self.rect)
 
 class MovingPlatform:
     def __init__(self, y, start_x, end_x):
@@ -235,7 +259,8 @@ class MovingPlatform:
         self.move_part_level1_velocity = 3
         self.move_right = True
     def draw(self, screen):
-        pygame.draw.rect(screen, 'brown', self.rect)
+        #pygame.draw.rect(screen, 'brown', self.rect)
+        screen.blit(platform_img, self.rect)
 
     def update_pos_right(self):
         self.rect.x += self.move_part_level1_velocity
@@ -256,7 +281,13 @@ class MovingPart:
         self.move_up = True
 
     def draw(self, screen):
-        pygame.draw.rect(screen, 'orange', self.rect)
+
+        pic_x = self.rect.x - 16
+        pic_y = self.rect.y - 11
+
+        screen.blit(moving_spikes, pygame.Rect(pic_x , pic_y, self.width, self.height))
+        #pygame.draw.rect(screen, 'orange', self.rect)
+
 
     def update_pos_down(self):
         self.rect.y += self.move_part_level1_velocity
@@ -276,7 +307,10 @@ class MovingEnemy:
         self.move_right = True
 
     def draw(self, screen):
-        pygame.draw.rect(screen, 'orange', self.rect)
+        #pygame.draw.rect(screen, 'orange', self.rect)
+        pic_x = self.rect.x - 10
+        pic_y = self.rect.y - 10
+        screen.blit(enemy_img, pygame.Rect(pic_x, pic_y, self.width, self.height))
 
     def update_pos_right(self):
         self.rect.x += self.move_part_level1_velocity
@@ -296,7 +330,9 @@ class Fragment: # Класс фрагмента
 
     def draw(self, screen):
         if not self.is_taken: # рисуем фрагмент если он не взят
-            pygame.draw.rect(screen, 'yellow', self.rect)
+            #pygame.draw.rect(screen, 'yellow', self.rect)
+            self.rect2 = pygame.Rect(self.rect.x - 5, self.rect.y - 10, FRAGMENT_WIDTH, FRAGMENT_HEIGHT)
+            screen.blit(star, self.rect2)
 
 
 
@@ -326,7 +362,14 @@ class Hero:
                 self.current_image = image2
             elif self.moving_right:
                 self.current_image = image
-            screen.blit(self.current_image, (self.hero_x - HERO_CONSTANT / 1.7, self.hero_y - HERO_CONSTANT))
+
+            if self.current_image == image2:
+                img_move = 10
+            else:
+                img_move = -10
+
+            screen.blit(self.current_image, (self.hero_x - HERO_CONSTANT / 1.7 + img_move, self.hero_y - HERO_CONSTANT))
+
 
     def jump(self):
         if self.can_jump and self.velocity_y <= 0:
@@ -492,7 +535,14 @@ class Hero:
 
 
 class Game:
+
     def __init__(self):
+        self.close = False
+        if CURRENT_LEVEL >= MAX_LEVEL:
+            print('MAX LEVEL')
+            self.close = True
+            return
+
         self.already_draw = False
         self.restart_game = False
         self.level_change = False
@@ -504,6 +554,7 @@ class Game:
         self.moving_kill_parts = []
         self.moving_platforms = []
         self.enemies = []
+        self.creature = None
 
         self.create_moving_kill_parts()
         self.create_moving_platforms()
@@ -527,7 +578,7 @@ class Game:
 
         print(self.background_pos)
 
-        self.GROUND_HEIGHT = 35
+        self.GROUND_HEIGHT = 40
 
 
     def create_platforms(self):
@@ -581,7 +632,7 @@ class Game:
 
     def handle_input(self):
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.QUIT or self.close:
                 pygame.mixer.music.stop()
                 return False
             if event.type == pygame.KEYDOWN:
@@ -651,11 +702,6 @@ class Game:
         screen.blit(self.background_image, (0, self.background_pos))
 
 
-        for platform in self.platforms:
-            platform.draw(screen)
-        for fragment in self.fragments:
-            fragment[0].rect.y = self.platforms[fragment[-1]].rect.top - FRAGMENT_HEIGHT
-            fragment[0].draw(screen)
         for part in self.kill_parts:
             if not self.already_draw:
                 part[0].rect.y = self.platforms[part[-1]].rect.top - KP_HEIGHT
@@ -663,6 +709,11 @@ class Game:
             else:
                 part[0].draw(screen)
                 self.already_draw = True
+        for platform in self.platforms:
+            platform.draw(screen)
+        for fragment in self.fragments:
+            fragment[0].rect.y = self.platforms[fragment[-1]].rect.top - FRAGMENT_HEIGHT
+            fragment[0].draw(screen)
         for move_kill_part in self.moving_kill_parts:
             move_kill_part.draw(screen)
 
@@ -706,9 +757,9 @@ class Game:
         font = pygame.font.SysFont(None, 40)
         level_text = text = font.render(f"Уровень {CURRENT_LEVEL + 1}", True, 'white')
         if self.fragments_taken != 3:
-            text = font.render(f"Фрагментов собрано: {self.fragments_taken}/3", True, 'white')  # Текст, сглаживание, цвет
+            text = font.render(f"Звёзд собрано: {self.fragments_taken}/3", True, 'purple')  # Текст, сглаживание, цвет
         else:
-            text = font.render(f"Все фрагменты собраны!", True, 'white')
+            text = font.render(f"Все звёзды собраны!", True, 'white')
         text_rect = text.get_rect(topleft=(10, 40))  # форматирование текста
         level_rect = level_text.get_rect(topleft=(10,10))
         screen.blit(level_text, level_rect)  # выводим текст
@@ -743,13 +794,13 @@ class Game:
     def defeat_text(self):
 
         font = pygame.font.SysFont("Splash", 70)
-        text = font.render("GAME OVER", True, 'orange')  # Текст, сглаживание, цвет
+        text = font.render("GAME OVER", True, 'magenta')  # Текст, сглаживание, цвет
         text_rect = text.get_rect(
             center=(WIDTH // 2, HEIGHT // 2)) # форматирование текста посередине
         screen.blit(text, text_rect) # выводим текст
 
         font = pygame.font.Font(None, 35)
-        text = font.render('Чтобы продолжить игру нажмите "пробел"', True, 'black')  # Текст, сглаживание, цвет
+        text = font.render('Чтобы продолжить игру нажмите "пробел"', True, 'white')  # Текст, сглаживание, цвет
         text_rect = text.get_rect(
             center=(WIDTH // 2, HEIGHT // 2 + 40))  # форматирование текста посередине
         screen.blit(text, text_rect)  # выводим текст
@@ -762,11 +813,122 @@ class Game:
     def change_level(self): # следующий уровень
         global CURRENT_LEVEL
         CURRENT_LEVEL += 1
-        self.__init__()
-        print('Меняем фон')
-        self.level_change = True
+        if CURRENT_LEVEL >= MAX_LEVEL:
+            self.close = True
+            self.handle_input()
+            print('MAX LEVEL!')
+            end_game = EndGame()
+            end_game.end_game()
+        else:
+            self.__init__()
+            print('Меняем фон')
+            self.level_change = True
 
 
 # Создание и запуск игры
 game = Game()
-game.run()
+
+
+#НАЧАЛЬНЫЙ ЭКРАН
+
+class StartGame:
+
+    def __init__(self):
+        self.level = 0
+        self.level_button = None
+        self.start_button = None
+        self.exit_button = None
+
+
+    def start_game(self):
+        self.run_start = True
+        while self.run_start:
+            self.change_level_render()
+            self.start_button_render()
+            self.exit_button_render()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.run_start = False
+                elif event.type == pygame.MOUSEBUTTONDOWN: # меняем уровень
+                    self.change_level_button(event.pos)
+                    self.start_game_check(event.pos)
+                    self.end_game_check(event.pos)
+                    #game.run()
+                    break # начинаем игру
+            self.render_level()
+            pygame.display.flip()
+
+    def start_button_render(self):
+        coords = (100, 280, 200, 70)
+        self.start_button = pygame.Rect(coords)
+        #pygame.draw.rect(screen, 'yellow', coords)
+
+    def exit_button_render(self):
+        coords = (100, 510, 200, 70)
+        self.exit_button = pygame.Rect(coords)
+        #pygame.draw.rect(screen, 'pink', coords)
+
+
+    def change_level_render(self):
+        #ФОН
+        screen.fill((255, 255, 255))
+        image = pygame.image.load('data/StartBackground3.png')
+        screen.blit(image, (0, 0))
+        #КНОПКА УРОВНЕЙ
+        coords = (390, 235, 170, 160)
+        self.level_button = pygame.Rect(coords)
+        #pygame.draw.rect(screen, 'yellow', coords)
+
+    def change_level_button(self, e_pos): # КНОПКА ДЛЯ ПЕРЕКЛЮЧЕНИЯ УРОВНЯ
+        if self.level_button.collidepoint(e_pos):
+            global CURRENT_LEVEL
+            if CURRENT_LEVEL + 1 >= MAX_LEVEL:
+                self.level = 0
+            else:
+                self.level += 1
+            CURRENT_LEVEL = self.level
+
+    def start_game_check(self, pos):
+        if self.start_button.collidepoint(pos):
+            self.run_start = False
+            if not game.__init__():
+                game.run()
+                print(f'ТЕКУЩИЙ УРОВЕНЬ{CURRENT_LEVEL}')
+            else:
+                game_end.end_game()
+
+    def end_game_check(self, pos):
+        if self.exit_button.collidepoint(pos):
+            self.run_start = False
+
+    def render_level(self):
+
+        rect = pygame.Rect(390, 225, 170, 180)
+
+        # Текст
+        font = pygame.font.Font(None, 135)
+        text = str(self.level % MAX_LEVEL + 1)  # Текст, который нужно отобразить
+        text_color = (255, 255, 255)  # Черный цвет
+        text_surface = font.render(text, True, text_color)  # Рендер текста
+        text_rect = text_surface.get_rect()  # Получаем прямоугольник текста
+        text_rect.center = rect.center  # центрируем текст внутри прямоугольника
+
+        screen.blit(text_surface, text_rect)  # Накладываем текст на экран
+    clock.tick(FPS)
+
+
+class EndGame:
+
+    def __init__(self):
+        pass
+
+
+    def end_game(self):
+        screen.fill((255, 255, 255))
+        pygame.display.flip()
+
+
+game_end = EndGame()
+start_game = StartGame()
+start_game.start_game()
+game_end.end_game()
