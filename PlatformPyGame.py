@@ -1,11 +1,9 @@
 from sys import platform
-from tkinter.constants import CURRENT
 
 import pygame
 from PIL import Image
 import sys
 
-from pygame.examples.midi import BACKGROUNDCOLOR
 
 
 
